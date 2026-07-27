@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2b1a5e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Talky Quest</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --safe-t:env(safe-area-inset-top,0px);
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:'Baloo 2',-apple-system,'Segoe UI',system-ui,sans-serif;
+    background:#2b1a5e;
+    color:#fff;
+    user-select:none;
+    touch-action:manipulation;
+  }
+  #app{
+    position:fixed;inset:0;
+    display:flex;flex-direction:column;
+    padding:calc(12px + var(--safe-t)) 12px calc(12px + var(--safe-b));
+    background:radial-gradient(circle at 50% 0%,#5b37b7 0%,#2b1a5e 60%,#1a0f3d 100%);
+  }
+
+  /* ---------- TOP BAR ---------- */
+  #topbar{display:flex;align-items:center;gap:10px;height:44px;flex-shrink:0;}
+  .pill{
+    background:rgba(255,255,255,.14);border-radius:22px;
+    padding:7px 14px;font-size:15px;font-weight:700;
+    display:flex;align-items:center;gap:6px;backdrop-filter:blur(6px);
+  }
+  #stars{color:#ffd93d;}
+  #progressWrap{flex:1;height:12px;background:rgba(0,0,0,.28);border-radius:8px;overflow:hidden;}
+  #progressBar{height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,#ffd93d,#ff9a3d);transition:width .45s cubic-bezier(.34,1.56,.64,1);}
+  .iconbtn{
+    width:42px;height:42px;border-radius:50%;border:none;flex-shrink:0;
+    background:rgba(255,255,255,.14);color:#fff;font-size:20px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .iconbtn:active{transform:scale(.9);}
+
+  /* ---------- STAGE ---------- */
+  #stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;position:relative;min-height:0;}
+
+  #hero{font-size:clamp(46px,15vw,78px);line-height:1;filter:drop-shadow(0 8px 14px rgba(0,0,0,.45));transition:transform .3s;}
+  .hero-idle{animation:bob 2.4s ease-in-out infinite;}
+  .hero-happy{animation:hop .5s ease 3;}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  @keyframes hop{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-32px) scale(1.12)}}
+
+  #speech{
+    background:#fff;color:#2b1a5e;border-radius:20px;
+    padding:12px 20px;font-size:clamp(17px,4.6vw,23px);font-weight:800;
+    text-align:center;max-width:92%;position:relative;
+    box-shadow:0 6px 0 rgba(0,0,0,.18);line-height:1.35;
+  }
+  #speech::after{
+    content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+    border:11px solid transparent;border-bottom-color:#fff;border-top:0;
+  }
+  #targetWord{
+    font-size:clamp(30px,10vw,54px);font-weight:900;letter-spacing:3px;
+    text-shadow:0 4px 0 rgba(0,0,0,.3);min-height:1.1em;
+  }
+
+  /* ---------- CHOICES ---------- */
+  #choices{
+    display:flex;gap:clamp(8px,3vw,20px);flex-wrap:wrap;
+    align-items:center;justify-content:center;width:100%;
+  }
+  .choice{
+    border:none;border-radius:24px;cursor:pointer;position:relative;
+    width:clamp(88px,26vw,132px);height:clamp(88px,26vw,132px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-size:clamp(38px,12vw,58px);
+    box-shadow:0 7px 0 rgba(0,0,0,.32);
+    transition:transform .15s,box-shadow .15s,opacity .3s;
+  }
+  .choice:active{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.32);}
+  .choice .cap{font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;}
+  .choice.correct{animation:pop .55s ease;}
+  .choice.wrong{animation:shake .4s ease;}
+  .choice.dim{opacity:.28;pointer-events:none;}
+  @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.25) rotate(4deg)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-11px)}75%{transform:translateX(11px)}}
+
+  /* boxed items (numbers/gifts) */
+  .tray{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;align-items:center;
+        font-size:clamp(32px,10vw,50px);min-height:90px;max-width:94%;}
+  #endPrizes{font-size:34px;letter-spacing:5px;line-height:1.5;max-width:340px;display:none;}
+
+  #rewardTitle{
+    font-size:clamp(22px,7vw,34px);font-weight:900;letter-spacing:2px;
+    color:#ffd93d;text-shadow:0 4px 0 rgba(0,0,0,.35);text-align:center;
+  }
+  #rewardSlot{
+    min-height:150px;display:flex;align-items:center;justify-content:center;
+  }
+
+  /* ---------- PRIZE SHELF (top-right, persists all game) ---------- */
+  #shelf{
+    display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;align-items:center;
+    min-height:0;padding:0 2px;flex-shrink:0;
+  }
+  #shelf:not(:empty){min-height:40px;padding-top:6px;}
+  .prize{
+    font-size:clamp(24px,7vw,32px);line-height:1;
+    filter:drop-shadow(0 3px 5px rgba(0,0,0,.45));
+    animation:prizeLand .5s cubic-bezier(.34,1.56,.64,1) backwards;
+  }
+  @keyframes prizeLand{
+    from{transform:scale(.2) rotate(-30deg);opacity:0}
+    to{transform:scale(1) rotate(0);opacity:1}
+  }
+  /* the prize flying from the box up to the shelf */
+  .flyer{
+    position:fixed;z-index:70;pointer-events:none;
+    font-size:64px;line-height:1;
+    filter:drop-shadow(0 8px 14px rgba(0,0,0,.5));
+    transition:left .95s cubic-bezier(.5,-0.25,.6,1),
+               top .95s cubic-bezier(.5,-0.25,.6,1),
+               transform .95s ease-in, opacity .25s ease-in .78s;
+  }
+  /* the prize popping out of the opened box */
+  .burst{
+    font-size:clamp(64px,20vw,104px);line-height:1;
+    filter:drop-shadow(0 10px 16px rgba(0,0,0,.5));
+    animation:burstOut .75s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes burstOut{
+    0%{transform:translateY(26px) scale(.25) rotate(-20deg);opacity:0}
+    55%{transform:translateY(-16px) scale(1.28) rotate(8deg);opacity:1}
+    100%{transform:translateY(0) scale(1) rotate(0);opacity:1}
+  }
+
+  /* gift box the child taps to open */
+  #giftbox{
+    border:none;background:none;cursor:pointer;
+    font-size:clamp(76px,24vw,124px);line-height:1;
+    filter:drop-shadow(0 10px 16px rgba(0,0,0,.45));
+    animation:wiggle 1.1s ease-in-out infinite;
+    padding:6px;
+  }
+  #giftbox:active{transform:scale(.92);}
+  #giftbox.opening{animation:boxopen .42s cubic-bezier(.34,1.56,.64,1) forwards;}
+  @keyframes wiggle{
+    0%,100%{transform:rotate(-5deg) scale(1)}
+    50%{transform:rotate(5deg) scale(1.07)}
+  }
+  @keyframes boxopen{
+    0%{transform:scale(1) rotate(0)}
+    35%{transform:scale(1.3) rotate(-9deg)}
+    100%{transform:scale(1.85) rotate(6deg);opacity:0}
+  }
+  .numrow{display:flex;gap:clamp(8px,3vw,18px);justify-content:center;flex-wrap:wrap;width:100%;margin-top:4px;}
+  .choice.num{width:clamp(72px,21vw,104px);height:clamp(72px,21vw,104px);font-size:clamp(28px,8vw,40px);}
+  .tray span{animation:drop .45s cubic-bezier(.34,1.56,.64,1) backwards;}
+  @keyframes drop{from{transform:translateY(-46px) scale(.5);opacity:0}}
+
+  /* ---------- MIC ---------- */
+  #controls{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;padding-top:6px;}
+  #mic{
+    width:88px;height:88px;border-radius:50%;border:none;cursor:pointer;
+    background:linear-gradient(160deg,#ff6b9d,#e63973);color:#fff;font-size:40px;
+    box-shadow:0 8px 0 #a81f4d,0 0 0 0 rgba(255,107,157,.6);
+    display:flex;align-items:center;justify-content:center;transition:transform .15s;
+  }
+  #mic:active{transform:translateY(5px);}
+  #mic.listening{animation:pulse 1.2s infinite;background:linear-gradient(160deg,#4ade80,#16a34a);box-shadow:0 8px 0 #15803d;}
+  @keyframes pulse{0%{box-shadow:0 8px 0 #15803d,0 0 0 0 rgba(74,222,128,.65)}70%{box-shadow:0 8px 0 #15803d,0 0 0 26px rgba(74,222,128,0)}100%{box-shadow:0 8px 0 #15803d,0 0 0 0 rgba(74,222,128,0)}}
+  #hint{font-size:13px;opacity:.75;height:17px;font-weight:600;text-align:center;}
+
+  /* ---------- OVERLAYS ---------- */
+  .overlay{
+    position:fixed;inset:0;z-index:50;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    padding:26px;text-align:center;
+    background:linear-gradient(180deg,rgba(43,26,94,.97),rgba(15,8,38,.99));
+    backdrop-filter:blur(4px);
+  }
+  .overlay.show{display:flex;animation:fade .3s;}
+  @keyframes fade{from{opacity:0}}
+  .bigbtn{
+    border:none;border-radius:26px;padding:17px 42px;font-size:21px;font-weight:900;
+    background:linear-gradient(160deg,#ffd93d,#ff9a3d);color:#5c2c00;cursor:pointer;
+    box-shadow:0 7px 0 #c2620c;letter-spacing:1px;font-family:inherit;
+  }
+  .bigbtn:active{transform:translateY(5px);box-shadow:0 2px 0 #c2620c;}
+  .bigbtn.ghost{background:rgba(255,255,255,.16);color:#fff;box-shadow:0 7px 0 rgba(0,0,0,.3);}
+  h1{font-size:clamp(34px,11vw,58px);font-weight:900;letter-spacing:2px;
+     background:linear-gradient(180deg,#fff,#ffd93d);-webkit-background-clip:text;
+     -webkit-text-fill-color:transparent;line-height:1.1;}
+  .sub{font-size:17px;opacity:.85;max-width:340px;line-height:1.5;font-weight:600;}
+
+  /* chapter card */
+  #chapterIcon{font-size:88px;animation:pop .6s ease;}
+  #chapterName{font-size:30px;font-weight:900;letter-spacing:2px;}
+
+  /* confetti */
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;}
+  .conf{position:absolute;font-size:26px;animation:fall linear forwards;}
+  @keyframes fall{to{transform:translateY(105vh) rotate(680deg);opacity:0}}
+
+  /* word bank on report */
+  .wordgrid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:420px;}
+  .wordchip{background:rgba(255,255,255,.15);border-radius:14px;padding:8px 13px;
+            font-size:15px;font-weight:800;display:flex;align-items:center;gap:5px;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="topbar">
+    <div class="pill" id="stars">⭐ <span id="starCount">0</span></div>
+    <div id="progressWrap"><div id="progressBar"></div></div>
+    <button class="iconbtn" id="repeatBtn" aria-label="Repeat">🔊</button>
+  </div>
+
+  <!-- prizes won from gift boxes stay here for the rest of the game -->
+  <div id="shelf" aria-label="Your prizes"></div>
+
+  <div id="stage">
+    <div id="hero" class="hero-idle">🦊</div>
+    <div id="speech">Tap the microphone!</div>
+    <div id="targetWord"></div>
+    <div id="choices"></div>
+  </div>
+
+  <div id="controls">
+    <button id="mic" aria-label="Speak">🎤</button>
+    <div id="hint"></div>
+  </div>
+</div>
+
+<!-- START -->
+<div class="overlay show" id="startScreen">
+  <div style="font-size:82px" class="hero-idle">🦊</div>
+  <h1>TALKY QUEST</h1>
+  <p class="sub">Speak English out loud and help Fizz the Fox on a magical adventure!</p>
+  <button class="bigbtn" id="playBtn">▶ PLAY</button>
+  <p class="sub" style="font-size:13px;opacity:.55">Ages 5–9 · Microphone needed</p>
+</div>
+
+<!-- CHAPTER CARD -->
+<div class="overlay" id="chapterScreen">
+  <div id="chapterIcon">🎨</div>
+  <div id="chapterName">COLORS</div>
+  <p class="sub" id="chapterDesc"></p>
+  <button class="bigbtn" id="chapterBtn">LET'S GO!</button>
+</div>
+
+<!-- CHAPTER REWARD (one gift box per chapter) -->
+<div class="overlay" id="rewardScreen">
+  <div id="rewardTitle">CHAPTER COMPLETE!</div>
+  <div id="rewardSlot"></div>
+  <p class="sub" id="rewardHint"></p>
+</div>
+
+<!-- END -->
+<div class="overlay" id="endScreen">
+  <div style="font-size:76px">🏆</div>
+  <h1>YOU DID IT!</h1>
+  <p class="sub" id="endStats"></p>
+  <div id="endPrizes"></div>
+  <div class="wordgrid" id="wordBank"></div>
+  <button class="bigbtn" id="againBtn">PLAY AGAIN</button>
+</div>
+
+<div id="fx"></div>
+
+<script>
+/* =========================================================
+   TALKY QUEST — MVP
+   4 chapters · voice-first · tap fallback always available
+   ========================================================= */
+
+const DATA = {
+  colors: {
+    icon:'🎨', name:'COLOURS', desc:'Three magic doors. Say the colour to open one!',
+    prompt:(t)=>`Say the colour: ${t.word}!`, leadKey:'ui_saycolour', nameKey:'ui_colours',
+    items:[
+      {word:'RED',    emoji:'🚪', css:'#e63946', alts:['red','read','rat']},
+      {word:'BLUE',   emoji:'🚪', css:'#2a7fdb', alts:['blue','blu','bloom']},
+      {word:'GREEN',  emoji:'🚪', css:'#2fa84f', alts:['green','grin']},
+      {word:'YELLOW', emoji:'🚪', css:'#f2b705', alts:['yellow','jello','hello']},
+      {word:'PURPLE', emoji:'🚪', css:'#8b4fd6', alts:['purple','people']},
+      {word:'ORANGE', emoji:'🚪', css:'#f2760b', alts:['orange','orang']}
+    ]
+  },
+  numbers: {
+    icon:'🎁', name:'NUMBERS', desc:'Count what is inside the gift box, then say the number!',
+    prompt:(t)=>`How many? Say the number!`, nameKey:'ui_numbers',
+    counting:true,
+    items:[
+      {word:'ONE',   n:1, alts:['one','won','1','wan']},
+      {word:'TWO',   n:2, alts:['two','to','too','2']},
+      {word:'THREE', n:3, alts:['three','tree','free','3']},
+      {word:'FOUR',  n:4, alts:['four','for','fore','4']},
+      {word:'FIVE',  n:5, alts:['five','fife','5']},
+      {word:'SIX',   n:6, alts:['six','sick','sex','6']},
+      {word:'SEVEN', n:7, alts:['seven','7']},
+      {word:'EIGHT', n:8, alts:['eight','ate','8']}
+    ],
+    fillers:['🍎','⭐','🍓','🐟','🌸','🍪']
+  },
+  animals: {
+    icon:'🐘', name:'ANIMALS', desc:'Animals are hiding in the forest. Call them by name!',
+    prompt:(t)=>`Who is this? Say ${t.word}!`, leadKey:'ui_whoisthis', nameKey:'ui_animals',
+    items:[
+      {word:'CAT',    emoji:'🐱', css:'#f7a072', alts:['cat','cut','cap']},
+      {word:'DOG',    emoji:'🐶', css:'#c98b5e', alts:['dog','dock','duck']},
+      {word:'BIRD',   emoji:'🐦', css:'#5bc0eb', alts:['bird','burd','bert']},
+      {word:'FISH',   emoji:'🐠', css:'#4cc9c0', alts:['fish','finch']},
+      {word:'LION',   emoji:'🦁', css:'#e8a33d', alts:['lion','line','ryan']},
+      {word:'BEAR',   emoji:'🐻', css:'#a5714b', alts:['bear','bare','beer']},
+      {word:'FROG',   emoji:'🐸', css:'#6bbf59', alts:['frog','fog']},
+      {word:'ELEPHANT',emoji:'🐘',css:'#9aa5b1', alts:['elephant','elefant']}
+    ]
+  },
+  verbs: {
+    icon:'🏃', name:'ACTIONS', desc:'Tell Fizz what to do. Say the action word!',
+    prompt:(t)=>`Tell Fizz: ${t.word}!`, leadKey:'ui_tellfizz', nameKey:'ui_actions',
+    items:[
+      {word:'JUMP',  emoji:'🤸', css:'#ff6b9d', alts:['jump','jumb','junk']},
+      {word:'RUN',   emoji:'🏃', css:'#4ecdc4', alts:['run','ron','rum']},
+      {word:'EAT',   emoji:'🍽️', css:'#ffa62b', alts:['eat','it','eight']},
+      {word:'SLEEP', emoji:'😴', css:'#7b8cde', alts:['sleep','slip']},
+      {word:'DANCE', emoji:'💃', css:'#e05780', alts:['dance','dans','dan']},
+      {word:'SWIM',  emoji:'🏊', css:'#3aa8e0', alts:['swim','swing','sweem']},
+      {word:'FLY',   emoji:'🕊️', css:'#a0c4ff', alts:['fly','flee','flight']},
+      {word:'SING',  emoji:'🎤', css:'#c77dff', alts:['sing','sink','thing']}
+    ]
+  }
+};
+
+const ORDER = ['colors','numbers','animals','verbs'];
+const ROUNDS_PER_CHAPTER = 4;
+
+const S = {
+  chapter:0, round:0, stars:0, target:null, options:[],
+  attempts:0, learned:new Set(), busy:false, listening:false,
+  prizes:[], prizeIdx:0
+};
+
+const $ = id => document.getElementById(id);
+const el = {
+  hero:$('hero'), speech:$('speech'), target:$('targetWord'), choices:$('choices'),
+  mic:$('mic'), hint:$('hint'), bar:$('progressBar'), starCount:$('starCount')
+};
+
+/* ---------- AUDIO ENGINE (recorded clips only) ----------
+   Every spoken line in this game is a pre-recorded British English clip.
+   The device text-to-speech engine is NEVER used, so a Turkish (or any
+   other) system voice can never read the English words. */
+const CLIP_WORDS = ['red','blue','green','yellow','purple','orange',
+  'one','two','three','four','five','six','seven','eight',
+  'cat','dog','bird','fish','lion','bear','frog','elephant',
+  'jump','run','eat','sleep','dance','swim','fly','sing',
+  'ui_hello','ui_saycolour','ui_howmany','ui_saynumber','ui_whoisthis',
+  'ui_say','ui_tellfizz','ui_listen','ui_tryagain','ui_nothatis',
+  'ui_greatjob','ui_welldone','ui_perfect','ui_amazing','ui_yougotit',
+  'ui_openbox','ui_letsgo','ui_fantastic','ui_ch1','ui_ch2','ui_ch3','ui_ch4',
+  'ui_colours','ui_numbers','ui_animals','ui_actions'];
+
+const clips = {};
+let audioUnlocked = false;
+CLIP_WORDS.forEach(w=>{
+  const a = new Audio(`audio/${w}.mp3`);
+  a.preload = 'auto';
+  a.addEventListener('error', ()=>{ clips[w] = null; }, {once:true});
+  clips[w] = a;
+});
+
+/* Mobile browsers block audio until a user gesture. Prime every element
+   once on first tap so later playback is instant and reliable. */
+function unlockAudio(){
+  if(audioUnlocked) return;
+  audioUnlocked = true;
+  // Unlocking used to muted-play every clip. That raced with the first real
+  // line (Fizz's hello), which then played while still muted and was never
+  // heard. Instead unlock with a tiny silent buffer, which satisfies the
+  // same user-gesture requirement without touching the real clips.
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(Ctx){
+      const ctx = new Ctx();
+      if(ctx.state === 'suspended') ctx.resume();
+      const src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, 22050);
+      src.connect(ctx.destination);
+      src.start(0);
+    }
+  }catch(e){}
+  // Also prime the <audio> elements by loading them (no playback, no mute).
+  CLIP_WORDS.forEach(w=>{ const a = clips[w]; if(a){ try{ a.load(); }catch(e){} } });
+}
+
+let currentAudio = null;
+function stopAudio(){
+  if(currentAudio){ try{ currentAudio.pause(); currentAudio.currentTime=0; }catch(e){} }
+  currentAudio = null;
+}
+
+/* Play one clip by key. Calls `then` when it finishes (or if it cannot play,
+   so the game never stalls waiting on audio). */
+function playKey(key, then){
+  const a = clips[key];
+  if(!a){ then && then(); return false; }
+  stopAudio();
+  currentAudio = a;
+  let done = false;
+  const finish = ()=>{ if(done) return; done = true; a.onended = null; then && then(); };
+  try{
+    a.currentTime = 0;
+    a.onended = finish;
+    const p = a.play();
+    if(p && p.catch) p.catch(()=>finish());
+    // Watchdog in case 'ended' never fires in a WebView.
+    const ms = (isFinite(a.duration) && a.duration ? a.duration*1000 : 1500) + 700;
+    setTimeout(finish, ms);
+  }catch(e){ finish(); }
+  return true;
+}
+
+/* Play a list of clip keys back to back. */
+function playSeq(keys, then){
+  const list = keys.filter(k=>k && clips[k]);
+  let i = 0;
+  const step = ()=>{
+    if(i >= list.length){ then && then(); return; }
+    playKey(list[i++], step);
+  };
+  step();
+}
+
+/* Speak a single target word from its recording. */
+function sayWord(word, then){ playKey(String(word).toLowerCase(), then); }
+
+/* ---------- SPEECH RECOGNITION ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, srSupported = !!SR;
+if(srSupported){
+  rec = new SR();
+  rec.lang='en-US'; rec.continuous=false; rec.interimResults=false; rec.maxAlternatives=5;
+
+  rec.onstart = ()=>{ S.listening=true; el.mic.classList.add('listening'); el.mic.textContent='👂';
+                      el.hint.textContent='Listening… speak now!'; };
+  rec.onend   = ()=>{ S.listening=false; el.mic.classList.remove('listening'); el.mic.textContent='🎤';
+                      if(!S.busy) el.hint.textContent = hintText(); };
+  rec.onerror = (e)=>{
+    S.listening=false; el.mic.classList.remove('listening'); el.mic.textContent='🎤';
+    if(e.error==='not-allowed'){ el.hint.textContent='Microphone blocked — tap the pictures instead!'; }
+    else if(e.error==='no-speech'){ el.hint.textContent='I did not hear you. Try again!'; }
+    else { el.hint.textContent='Tap a picture to answer!'; }
+  };
+  rec.onresult = (e)=>{
+    const heard = [];
+    for(let i=0;i<e.results[0].length;i++) heard.push(e.results[0][i].transcript.toLowerCase().trim());
+    judge(heard);
+  };
+}
+
+function listen(){
+  if(S.busy || !srSupported) return;
+  if(S.listening){ try{rec.stop();}catch(e){} return; }
+  stopAudio();
+  try{ rec.start(); }catch(e){ /* already started */ }
+}
+
+/* ---------- MATCHING ---------- */
+function matches(heardList, item){
+  const pool = [item.word.toLowerCase(), ...(item.alts||[])];
+  for(const h of heardList){
+    const clean = h.replace(/[^a-z0-9 ]/g,'');
+    const words = clean.split(/\s+/);
+    for(const p of pool){
+      if(clean===p) return true;
+      if(words.includes(p)) return true;
+      if(clean.includes(p) && p.length>2) return true;
+    }
+  }
+  return false;
+}
+
+function judge(heardList){
+  if(S.busy) return;
+  if(matches(heardList, S.target)){ success(); return; }
+  // said a wrong but valid option?
+  const wrongPick = S.options.find(o=>o!==S.target && matches(heardList,o));
+  S.attempts++;
+  if(wrongPick){ flash(wrongPick,'wrong'); }
+  if(S.attempts>=2){
+    el.hint.textContent = `Hint: it starts with "${S.target.word[0]}" — or tap the picture!`;
+    // Say the model pronunciation from the recording, twice, slowly.
+    playSeq(['ui_listen', S.target.word.toLowerCase()], ()=>{
+      setTimeout(()=>sayWord(S.target.word), 400);
+    });
+  }else{
+    el.hint.textContent='Almost! Try again 🎤';
+    playSeq(['ui_tryagain', S.target.word.toLowerCase()]);
+  }
+}
+
+/* ---------- ROUND FLOW ---------- */
+function chapterKey(){ return ORDER[S.chapter]; }
+
+function buildRound(){
+  const ch = DATA[chapterKey()];
+  const pool = shuffle([...ch.items]).slice(0,3);
+  S.options = pool;
+  S.target = pool[Math.floor(Math.random()*pool.length)];
+  S.attempts = 0; S.busy=false;
+
+  el.choices.innerHTML='';
+  el.target.textContent='';
+  el.hero.className='hero-idle';
+
+  if(ch.counting){
+    // Counting round: items drop into the tray one at a time so the child can
+    // count along. (The gift box is NOT here — it is the end-of-chapter prize.)
+    el.target.textContent = '';
+    el.speech.textContent = 'Count them!';
+    el.hint.textContent = '';
+    el.choices.innerHTML = '<div class="tray" id="tray"></div><div class="numrow" id="numrow"></div>';
+
+    const filler = ch.fillers[Math.floor(Math.random()*ch.fillers.length)];
+    const tray = $('tray');
+    for(let i=0;i<S.target.n;i++){
+      const s=document.createElement('span');
+      s.textContent=filler;
+      s.style.animationDelay=(i*0.34)+'s';
+      tray.appendChild(s);
+    }
+    const dropTime = S.target.n*340 + 450;
+
+    // tap fallback: numbered buttons
+    const row=$('numrow');
+    pool.forEach(o=>{
+      const b=document.createElement('button');
+      b.className='choice num';
+      b.style.background='#3f7fd6';
+      b.innerHTML=`<div>${o.n}</div><div class="cap">${o.word}</div>`;
+      b.dataset.word=o.word;
+      b.onclick=()=>{
+        if(S.busy) return;
+        if(o===S.target) success();
+        else { flash(o,'wrong'); S.attempts++; playSeq(['ui_nothatis', o.word.toLowerCase()]); }
+      };
+      row.appendChild(b);
+    });
+    setTimeout(()=>{ if(!S.busy) askPrompt(ch); }, dropTime);
+  }else{
+    pool.forEach(o=>{
+      const b=document.createElement('button');
+      b.className='choice';
+      b.style.background=o.css;
+      b.innerHTML = `<div>${o.emoji}</div>`;
+      b.onclick = ()=>{
+        if(S.busy) return;
+        if(o===S.target) success(); else { flash(o,'wrong'); S.attempts++; playSeq(['ui_nothatis', o.word.toLowerCase()]); }
+      };
+      b.dataset.word=o.word;
+      el.choices.appendChild(b);
+    });
+    el.target.textContent = S.target.word;
+    askPrompt(ch);
+  }
+  updateBar();
+}
+
+function askPrompt(ch){
+  el.speech.textContent = ch.prompt(S.target);
+  if(ch.counting) el.target.textContent = '';
+  el.hint.textContent = hintText();
+  const startListening = ()=>{ if(srSupported && !S.busy) listen(); };
+  // Speak the carrier sentence with TTS, but the target word itself from the
+  // native recording, so pronunciation is always correct.
+  const seq = ch.leadKey ? [ch.leadKey, S.target.word.toLowerCase()]
+                         : ['ui_howmany','ui_saynumber'];
+  playSeq(seq, startListening);
+}
+
+function hintText(){
+  return srSupported ? 'Tap 🎤 and say it out loud' : 'Tap the right picture!';
+}
+
+function flash(item, cls){
+  const btn = [...el.choices.querySelectorAll('.choice')].find(b=>b.dataset.word===item.word);
+  if(btn){ btn.classList.add(cls); setTimeout(()=>btn.classList.remove(cls),600); }
+}
+
+function success(){
+  if(S.busy) return;
+  S.busy = true;
+  try{ if(S.listening) rec.stop(); }catch(e){}
+  S.stars++; S.learned.add(S.target.word);
+  el.starCount.textContent = S.stars;
+  el.hero.className='hero-happy';
+  el.hint.textContent='';
+  el.speech.textContent = pick(['Yes! Great job!','Perfect!','Well done!','Amazing!','You got it!']);
+  el.target.textContent = S.target.word;
+
+  const btn=[...el.choices.querySelectorAll('.choice')].find(b=>b.dataset.word===S.target.word);
+  if(btn){ btn.classList.add('correct');
+    [...el.choices.querySelectorAll('.choice')].forEach(b=>{ if(b!==btn) b.classList.add('dim'); }); }
+
+  confetti(18);
+
+  const advance = ()=>{
+    S.round++;
+    if(S.round >= ROUNDS_PER_CHAPTER){
+      // Chapter cleared -> ONE gift box as the reward for the whole chapter.
+      S.round=0;
+      showRewardBox();
+    }
+    else buildRound();
+  };
+
+  // Wait for the praise audio to finish, then give the child a beat to enjoy
+  // the confetti before moving on. Never advance mid-sentence.
+  let moved = false;
+  const go = ()=>{ if(moved) return; moved = true; setTimeout(advance, 1400); };
+  playSeq([S.target.word.toLowerCase(),
+           pick(['ui_greatjob','ui_welldone','ui_perfect','ui_amazing','ui_yougotit'])], go);
+  setTimeout(go, 5000);   // safety net if audio never reports completion
+}
+
+/* ---------- END-OF-CHAPTER REWARD BOX ----------
+   Shown once per chapter, after all its rounds are cleared. The child taps
+   the box, a prize bursts out and flies to the shelf, then the next chapter
+   begins (or the game ends). */
+function showRewardBox(){
+  S.busy = true;
+  try{ if(S.listening) rec.stop(); }catch(e){}
+
+  const done = DATA[chapterKey()];
+  $('rewardTitle').textContent = `${done.name} COMPLETE!`;
+  $('rewardScreen').classList.add('show');
+
+  const slot = $('rewardSlot');
+  slot.innerHTML = '<button id="giftbox" aria-label="Open the gift box">🎁</button>';
+  $('rewardHint').textContent = '👆 Tap the box to open it';
+  playKey('ui_openbox');
+
+  let opened = false;
+  $('giftbox').onclick = ()=>{
+    if(opened) return;
+    opened = true;
+    const box = $('giftbox');
+    box.classList.add('opening');
+
+    setTimeout(()=>{
+      box.remove();
+      const prize = PRIZES[S.prizeIdx % PRIZES.length];
+      S.prizeIdx++;
+
+      const burst = document.createElement('div');
+      burst.className = 'burst';
+      burst.textContent = prize;
+      slot.appendChild(burst);
+      confetti(26);
+      $('rewardHint').textContent = 'Wow! A prize for you!';
+
+      // Fly it up to the shelf, then move on to the next chapter.
+      setTimeout(()=>{
+        // Measure BEFORE hiding the overlay, otherwise the rect is empty.
+        const rect = burst.getBoundingClientRect();
+        $('rewardScreen').classList.remove('show');
+        flyToShelf(burst, prize, rect);
+        setTimeout(()=>{
+          S.chapter++;
+          if(S.chapter >= ORDER.length) endGame(); else showChapter();
+        }, 1150);
+      }, 1100);
+    }, 400);
+  };
+}
+
+/* ---------- PRIZES ---------- */
+/* One prize per gift box. Shuffled at game start so each run feels different. */
+const PRIZES = shuffle(['🧸','🎈','🚀','🪁','🎨','🦄','⚽','🍭','🎸','🏰','🚂','🐳']);
+
+/* Animate the prize from wherever it burst out, up into the shelf. */
+function flyToShelf(node, prize, rect){
+  const shelf = $('shelf');
+  const from = rect || node.getBoundingClientRect();
+  if(!from.width){ if(node) node.remove(); addPrize(prize); return; }
+
+  const flyer = document.createElement('div');
+  flyer.className = 'flyer';
+  flyer.textContent = prize;
+  flyer.style.left = from.left + 'px';
+  flyer.style.top  = from.top  + 'px';
+  document.body.appendChild(flyer);
+  if(node) node.remove();
+
+  // Target: just past the right edge of the shelf.
+  const sr = shelf.getBoundingClientRect();
+  const toX = Math.max(8, sr.right - 34);
+  const toY = sr.top + (sr.height ? sr.height/2 - 16 : 4);
+
+  requestAnimationFrame(()=>{
+    flyer.style.left = toX + 'px';
+    flyer.style.top  = toY + 'px';
+    flyer.style.transform = 'scale(.42) rotate(360deg)';
+    flyer.style.opacity = '0';
+  });
+  setTimeout(()=>{ flyer.remove(); addPrize(prize); }, 1000);
+}
+
+function addPrize(prize){
+  S.prizes.push(prize);
+  const d = document.createElement('div');
+  d.className = 'prize';
+  d.textContent = prize;
+  $('shelf').appendChild(d);
+}
+
+function updateBar(){
+  const total = ORDER.length*ROUNDS_PER_CHAPTER;
+  const done = S.chapter*ROUNDS_PER_CHAPTER + S.round;
+  el.bar.style.width = (done/total*100)+'%';
+}
+
+/* ---------- SCREENS ---------- */
+function showChapter(){
+  const ch = DATA[chapterKey()];
+  $('chapterIcon').textContent = ch.icon;
+  $('chapterName').textContent = ch.name;
+  $('chapterDesc').textContent = ch.desc;
+  $('chapterScreen').classList.add('show');
+  playSeq(['ui_ch'+(S.chapter+1), ch.nameKey]);
+}
+
+function endGame(){
+  $('endScreen').classList.add('show');
+  $('endStats').textContent = `You earned ${S.stars} stars and learned ${S.learned.size} English words!`;
+  const pr=$('endPrizes');
+  pr.textContent = S.prizes.join(' ');
+  pr.style.display = S.prizes.length ? 'block' : 'none';
+  const wb=$('wordBank'); wb.innerHTML='';
+  [...S.learned].forEach(w=>{
+    const c=document.createElement('div'); c.className='wordchip'; c.textContent=w;
+    c.onclick=()=>sayWord(w);
+    wb.appendChild(c);
+  });
+  confetti(60);
+  playKey('ui_fantastic');
+}
+
+function startGame(){
+  S.chapter=0; S.round=0; S.stars=0; S.learned=new Set();
+  S.prizes=[]; S.prizeIdx=0; $('shelf').innerHTML='';
+  shuffle(PRIZES);
+  el.starCount.textContent='0';
+  $('endScreen').classList.remove('show');
+  $('startScreen').classList.remove('show');
+  // Let Fizz finish saying hello BEFORE the chapter card appears, otherwise
+  // showChapter() calls stopAudio() and cuts the greeting in half.
+  let moved = false;
+  const go = ()=>{ if(moved) return; moved = true; setTimeout(showChapter, 350); };
+  playKey('ui_hello', go);
+  setTimeout(go, 4000);          // safety net if audio never reports completion
+}
+
+/* ---------- FX / UTILS ---------- */
+function confetti(n){
+  const fx=$('fx'); const em=['⭐','🎉','✨','🌟','🎊','💫'];
+  for(let i=0;i<n;i++){
+    const d=document.createElement('div'); d.className='conf';
+    d.textContent=em[Math.floor(Math.random()*em.length)];
+    d.style.left=Math.random()*100+'vw'; d.style.top='-8vh';
+    d.style.animationDuration=(1.6+Math.random()*1.6)+'s';
+    d.style.animationDelay=(Math.random()*.5)+'s';
+    fx.appendChild(d); setTimeout(()=>d.remove(),3600);
+  }
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
+function pick(a){ return a[(Math.random()*a.length)|0]; }
+
+/* ---------- EVENTS ---------- */
+document.addEventListener('pointerdown', unlockAudio, {once:true});
+document.addEventListener('touchstart', unlockAudio, {once:true});
+$('playBtn').onclick = ()=>{ unlockAudio(); startGame(); };
+$('againBtn').onclick = ()=>{ unlockAudio(); startGame(); };
+$('chapterBtn').onclick = ()=>{ $('chapterScreen').classList.remove('show'); buildRound(); };
+el.mic.onclick = listen;
+$('repeatBtn').onclick = ()=>{
+  if(!S.target) return;
+  const ch=DATA[chapterKey()];
+  const seq = ch.leadKey ? [ch.leadKey, S.target.word.toLowerCase()]
+                         : ['ui_howmany','ui_saynumber'];
+  playSeq(seq, ()=>{ if(srSupported && !S.busy) listen(); });
+};
+if(!srSupported){ el.mic.style.opacity=.35; }
+document.addEventListener('gesturestart', e=>e.preventDefault());
+</script>
+</body>
+</html>
