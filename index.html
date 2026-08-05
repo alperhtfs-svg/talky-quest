@@ -50,9 +50,33 @@
   /* ---------- STAGE ---------- */
   #stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;position:relative;min-height:0;}
 
-  #hero{font-size:clamp(46px,15vw,78px);line-height:1;filter:drop-shadow(0 8px 14px rgba(0,0,0,.45));transition:transform .3s;}
+  /* Fizz: two rendered poses, cross-faded. Idle = head, happy = jumping. */
+  #hero{
+    position:relative;
+    pointer-events:auto;
+    width:clamp(96px,30vw,150px);
+    height:clamp(96px,30vw,150px);
+    flex-shrink:0;
+    filter:drop-shadow(0 10px 16px rgba(0,0,0,.45));
+  }
+  #hero > img, #hero > picture{
+    position:absolute;inset:0;margin:auto;
+    width:100%;height:100%;
+    display:block;
+    opacity:0;transition:opacity .18s ease;
+    pointer-events:none;
+  }
+  #hero > picture > img{
+    width:100%;height:100%;object-fit:contain;display:block;
+  }
+  #hero > img{object-fit:contain;}
+  #hero > img.on, #hero > picture.on{opacity:1;}
+  .startFox{display:block;width:min(46vw,190px);
+            filter:drop-shadow(0 10px 18px rgba(0,0,0,.45));
+            animation:bob 2.4s ease-in-out infinite;}
+  .startFox img{width:100%;display:block;}
   .hero-idle{animation:bob 2.4s ease-in-out infinite;}
-  .hero-happy{animation:hop .5s ease 3;}
+  .hero-happy{animation:none;}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
   @keyframes hop{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-32px) scale(1.12)}}
 
@@ -85,16 +109,42 @@
     transition:transform .15s,box-shadow .15s,opacity .3s;
   }
   .choice:active{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.32);}
+  .choice .choiceImg{
+    width:88%;height:88%;object-fit:contain;display:block;pointer-events:none;
+  }
   .choice .cap{font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;}
   .choice.correct{animation:pop .55s ease;}
-  .choice.wrong{animation:shake .4s ease;}
+  .choice.wrong{animation:wobble .55s ease;}
+  .choice.grow{animation:growbig .9s cubic-bezier(.34,1.56,.64,1) forwards;z-index:5;}
+  .choice.hintme{animation:hintpulse .9s ease-in-out 2;}
   .choice.dim{opacity:.28;pointer-events:none;}
+  /* while Fizz is still asking the question */
+  #choices.locked .choice{opacity:.55;pointer-events:none;}
   @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.25) rotate(4deg)}100%{transform:scale(1)}}
-  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-11px)}75%{transform:translateX(11px)}}
+  @keyframes wobble{
+    0%,100%{transform:rotate(0) translateX(0)}
+    15%{transform:rotate(-13deg) translateX(-10px)}
+    35%{transform:rotate(11deg) translateX(9px)}
+    55%{transform:rotate(-8deg) translateX(-6px)}
+    75%{transform:rotate(5deg) translateX(4px)}
+  }
+  @keyframes growbig{
+    0%{transform:scale(1)}
+    60%{transform:scale(1.42) rotate(3deg)}
+    100%{transform:scale(1.3)}
+  }
+  @keyframes hintpulse{
+    0%,100%{transform:scale(1);box-shadow:0 7px 0 rgba(0,0,0,.32)}
+    50%{transform:scale(1.12);box-shadow:0 7px 0 rgba(0,0,0,.32),0 0 0 10px rgba(255,217,61,.35)}
+  }
 
   /* boxed items (numbers/gifts) */
   .tray{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;align-items:center;
         font-size:clamp(32px,10vw,50px);min-height:90px;max-width:94%;}
+  .fixbox{
+    background:rgba(255,255,255,.12);border-radius:16px;padding:14px 18px;
+    font-size:14px;line-height:1.6;max-width:330px;text-align:center;
+  }
   #endPrizes{font-size:34px;letter-spacing:5px;line-height:1.5;max-width:340px;display:none;}
 
   #rewardTitle{
@@ -228,7 +278,13 @@
   <div id="shelf" aria-label="Your prizes"></div>
 
   <div id="stage">
-    <div id="hero" class="hero-idle">🦊</div>
+    <div id="hero" class="hero-idle">
+      <img id="fizzIdle"  class="on" src="hero/fizz-head.png" alt="Fizz the Fox">
+      <picture id="fizzHappy" aria-hidden="true">
+        <source srcset="hero/fizz-jump.webp" type="image/webp">
+        <img src="hero/fizz-jump.png" alt="">
+      </picture>
+    </div>
     <div id="speech">Tap the microphone!</div>
     <div id="targetWord"></div>
     <div id="choices"></div>
@@ -242,7 +298,10 @@
 
 <!-- START -->
 <div class="overlay show" id="startScreen">
-  <div style="font-size:82px" class="hero-idle">🦊</div>
+  <picture class="startFox">
+    <source srcset="hero/fizz-jump.webp" type="image/webp">
+    <img src="hero/fizz-jump.png" alt="Fizz the Fox">
+  </picture>
   <h1>TALKY QUEST</h1>
   <p class="sub">Speak English out loud and help Fizz the Fox on a magical adventure!</p>
   <button class="bigbtn" id="playBtn">▶ PLAY</button>
@@ -272,6 +331,25 @@
   <div id="endPrizes"></div>
   <div class="wordgrid" id="wordBank"></div>
   <button class="bigbtn" id="againBtn">PLAY AGAIN</button>
+</div>
+
+<!-- shown only if the mic stays silent (e.g. MIUI speech-engine issue) -->
+<div class="overlay" id="micHelp">
+  <div style="font-size:60px">🎤</div>
+  <h1 style="font-size:clamp(24px,7vw,36px)">Microphone help</h1>
+  <p class="sub">Keep playing — you can always <b>tap</b> the pictures. Nothing is locked.</p>
+  <div class="fixbox">
+    <b>If your child's voice is not detected:</b><br>
+    1. Allow microphone access for this app<br>
+    2. Speak close to the phone<br>
+    3. Turn off any headset / Bluetooth mic<br><br>
+    <b>For best results on Android:</b><br>
+    Settings → Apps → Default apps →<br>
+    <b>Digital assistant / Voice input</b><br>
+    → choose <b>Speech Services by Google</b>
+  </div>
+  <button class="bigbtn" id="micHelpBtn">GOT IT</button>
+  <p class="sub" style="font-size:12px;opacity:.55">Hold the 🔊 button to see this again</p>
 </div>
 
 <div id="fx"></div>
@@ -326,10 +404,10 @@ const DATA = {
     ]
   },
   verbs: {
-    icon:'🏃', name:'ACTIONS', desc:'Tell Fizz what to do. Say the action word!',
-    prompt:(t)=>`Tell Fizz: ${t.word}!`, leadKey:'ui_tellfizz', nameKey:'ui_actions',
+    icon:'🏃', name:'ACTIONS', desc:"Show Fizz what to do. Say the action word!",
+    prompt:(t)=>`Say the action: ${t.word}!`, leadKey:'ui_say', nameKey:'ui_actions',
     items:[
-      {word:'JUMP',  emoji:'🤸', css:'#ff6b9d', alts:['jump','jumb','junk']},
+      {word:'JUMP',  emoji:'', img:'hero/act-jump.png', css:'#ff6b9d', alts:['jump','jumb','junk']},
       {word:'RUN',   emoji:'🏃', css:'#4ecdc4', alts:['run','ron','rum']},
       {word:'EAT',   emoji:'🍽️', css:'#ffa62b', alts:['eat','it','eight']},
       {word:'SLEEP', emoji:'😴', css:'#7b8cde', alts:['sleep','slip']},
@@ -341,13 +419,18 @@ const DATA = {
   }
 };
 
+/* Bump this with every release. Keep in sync with package.json and,
+   once the Android project exists, with versionName in build.gradle. */
+const APP_VERSION = '1.0.0';
+console.info('Talky Quest v' + APP_VERSION);
+
 const ORDER = ['colors','numbers','animals','verbs'];
 const ROUNDS_PER_CHAPTER = 4;
 
 const S = {
   chapter:0, round:0, stars:0, target:null, options:[],
   attempts:0, learned:new Set(), busy:false, listening:false,
-  prizes:[], prizeIdx:0
+  prizes:[], prizeIdx:0, ready:false
 };
 
 const $ = id => document.getElementById(id);
@@ -404,76 +487,389 @@ function unlockAudio(){
 }
 
 let currentAudio = null;
+let audioQueue = [];        // pending clip keys
+let audioBusy = false;      // a clip is playing right now
+let audioGen = 0;           // bumped to cancel everything in flight
+
 function stopAudio(){
-  if(currentAudio){ try{ currentAudio.pause(); currentAudio.currentTime=0; }catch(e){} }
+  audioGen++;                       // invalidate callbacks already scheduled
+  audioQueue = [];
+  audioBusy = false;
+  if(currentAudio){
+    try{ currentAudio.pause(); currentAudio.currentTime = 0; }catch(e){}
+    currentAudio.onended = null;
+  }
   currentAudio = null;
 }
 
-/* Play one clip by key. Calls `then` when it finishes (or if it cannot play,
-   so the game never stalls waiting on audio). */
-function playKey(key, then){
+/* True while any speech is still playing or waiting to play. */
+function audioPlaying(){ return audioBusy || audioQueue.length > 0; }
+
+/* Plays one clip to completion. Never called directly by game code —
+   everything goes through the queue so clips can never overlap. */
+function playNow(key, gen, done){
   const a = clips[key];
-  if(!a){ then && then(); return false; }
-  stopAudio();
+  if(!a || gen !== audioGen){ done(); return; }
   currentAudio = a;
-  let done = false;
-  const finish = ()=>{ if(done) return; done = true; a.onended = null; then && then(); };
+  let fired = false;
+  const finish = ()=>{
+    if(fired) return;
+    fired = true;
+    a.onended = null;
+    if(currentAudio === a) currentAudio = null;
+    done();
+  };
   try{
     a.currentTime = 0;
     a.onended = finish;
     const p = a.play();
     if(p && p.catch) p.catch(()=>finish());
-    // Watchdog in case 'ended' never fires in a WebView.
-    const ms = (isFinite(a.duration) && a.duration ? a.duration*1000 : 1500) + 700;
-    setTimeout(finish, ms);
+    // Watchdog for WebViews that never fire 'ended'. It must never fire while
+    // the clip is genuinely still playing, so re-check progress before giving
+    // up and always allow generous slack over the real duration.
+    const armWatchdog = ()=>{
+      const total = (isFinite(a.duration) && a.duration) ? a.duration : 2.5;
+      const left = Math.max(0, total - (a.currentTime || 0));
+      setTimeout(()=>{
+        if(gen !== audioGen || fired) return;
+        // still making progress? give it another round instead of cutting it
+        if(!a.paused && !a.ended && (a.currentTime || 0) < total - 0.05){
+          armWatchdog(); return;
+        }
+        finish();
+      }, left*1000 + 900);
+    };
+    armWatchdog();
   }catch(e){ finish(); }
+}
+
+function pumpQueue(){
+  if(audioBusy) return;
+  const item = audioQueue.shift();
+  if(!item){ audioBusy = false; return; }
+  audioBusy = true;
+  const gen = audioGen;
+  playNow(item.key, gen, ()=>{
+    audioBusy = false;
+    if(gen !== audioGen) return;          // cancelled meanwhile
+    if(item.last && item.then) item.then();
+    pumpQueue();
+  });
+}
+
+/* Queue one clip. Returns false only if the clip does not exist. */
+function playKey(key, then){
+  if(!clips[key]){ then && then(); return false; }
+  audioQueue.push({ key, then, last:true });
+  pumpQueue();
   return true;
 }
 
-/* Play a list of clip keys back to back. */
+/* Queue a list of clips so they play back to back, never interleaved
+   with anything queued later. */
 function playSeq(keys, then){
-  const list = keys.filter(k=>k && clips[k]);
-  let i = 0;
-  const step = ()=>{
-    if(i >= list.length){ then && then(); return; }
-    playKey(list[i++], step);
-  };
-  step();
+  const list = keys.filter(k => k && clips[k]);
+  if(!list.length){ then && then(); return; }
+  list.forEach((k, idx)=>{
+    audioQueue.push({ key:k, then, last: idx === list.length - 1 });
+  });
+  pumpQueue();
+}
+
+/* Cut whatever is speaking and immediately play these clips instead.
+   Used for feedback the child triggers by tapping, so the newest tap always
+   wins and old queued speech is dropped. */
+function playSeqNow(keys, then){
+  stopAudio();
+  playSeq(keys, then);
+}
+function playKeyNow(key, then){
+  stopAudio();
+  return playKey(key, then);
 }
 
 /* Speak a single target word from its recording. */
 function sayWord(word, then){ playKey(String(word).toLowerCase(), then); }
 
-/* ---------- SPEECH RECOGNITION ---------- */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, srSupported = !!SR;
-if(srSupported){
-  rec = new SR();
-  rec.lang='en-US'; rec.continuous=false; rec.interimResults=false; rec.maxAlternatives=5;
+/* ---------- SPEECH INPUT ----------
+   Speech recognition quality varies wildly between phones: Samsung, Xiaomi and
+   others each ship a different engine, and some return nothing at all. So the
+   game never depends on it. Three tiers, tried in order:
 
-  rec.onstart = ()=>{ S.listening=true; el.mic.classList.add('listening'); el.mic.textContent='👂';
-                      el.hint.textContent='Listening… speak now!'; };
-  rec.onend   = ()=>{ S.listening=false; el.mic.classList.remove('listening'); el.mic.textContent='🎤';
-                      if(!S.busy) el.hint.textContent = hintText(); };
-  rec.onerror = (e)=>{
-    S.listening=false; el.mic.classList.remove('listening'); el.mic.textContent='🎤';
-    if(e.error==='not-allowed'){ el.hint.textContent='Microphone blocked — tap the pictures instead!'; }
-    else if(e.error==='no-speech'){ el.hint.textContent='I did not hear you. Try again!'; }
-    else { el.hint.textContent='Tap a picture to answer!'; }
+     Tier 1  Real recognition  - Web Speech API (browser) or the Capacitor
+                                 plugin (installed app). Best experience:
+                                 checks WHAT the child said.
+     Tier 2  Voice detection   - getUserMedia + Web Audio. Works on ANY device
+                                 with a microphone. Checks THAT the child spoke
+                                 (loud enough, long enough) and accepts it.
+     Tier 3  Tap              - always available, never blocked.
+
+   Tier 2 is the key to "works on every device": if a phone's recogniser is
+   broken or silent, the child still plays by speaking, and Fizz still models
+   the correct pronunciation. */
+
+const CapPlugins = (window.Capacitor && window.Capacitor.Plugins) || {};
+const NativeSR = CapPlugins.SpeechRecognition || null;
+const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform &&
+                       window.Capacitor.isNativePlatform());
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+let webSR = false;
+
+let sawSpeech   = false;   // recogniser reported speech this attempt
+let gotResult   = false;   // recogniser returned a transcript this attempt
+let silentTries = 0;       // consecutive attempts the recogniser gave nothing
+let voiceMode   = false;   // true once we fall back to Tier 2 for good
+
+function micOn(){
+  S.listening = true;
+  el.mic.classList.add('listening');
+  el.mic.textContent = '👂';
+  el.hint.textContent = 'Listening… speak now!';
+}
+function micOff(){
+  S.listening = false;
+  el.mic.classList.remove('listening');
+  el.mic.textContent = '🎤';
+  if(!S.busy && el.hint.textContent === 'Listening… speak now!'){
+    el.hint.textContent = hintText();
+  }
+}
+
+/* ---- Tier 2: microphone loudness detector (device independent) ---- */
+const Voice = {
+  ctx:null, stream:null, analyser:null, raf:0, active:false, supported:null,
+
+  async available(){
+    if(this.supported !== null) return this.supported;
+    this.supported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+                        (window.AudioContext || window.webkitAudioContext));
+    return this.supported;
+  },
+
+  async start(onSpoke, onNothing){
+    if(!await this.available()){ onNothing('unsupported'); return; }
+    try{
+      if(!this.stream){
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+        });
+      }
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!this.ctx) this.ctx = new Ctx();
+      if(this.ctx.state === 'suspended') await this.ctx.resume();
+      if(!this.analyser){
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 1024;
+        this.ctx.createMediaStreamSource(this.stream).connect(this.analyser);
+      }
+    }catch(e){ onNothing(e && e.name === 'NotAllowedError' ? 'denied' : 'error'); return; }
+
+    const buf = new Uint8Array(this.analyser.fftSize);
+    const t0 = performance.now();
+    let loudMs = 0, last = t0, peak = 0, floor = null, floorN = 0;
+    this.active = true;
+
+    const tick = ()=>{
+      if(!this.active) return;
+      const now = performance.now(), dt = now - last; last = now;
+      this.analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for(let i=0;i<buf.length;i++){ const v = (buf[i]-128)/128; sum += v*v; }
+      const rms = Math.sqrt(sum/buf.length);
+
+      // Learn the room's noise floor from the first ~250 ms, then require the
+      // child to be clearly louder than it. This adapts to noisy rooms and to
+      // phones with very different mic sensitivity.
+      if(now - t0 < 250){
+        floor = floor === null ? rms : (floor*floorN + rms)/(floorN+1); floorN++;
+      }else{
+        const thresh = Math.max((floor||0.005)*2.6, 0.028);
+        if(rms > thresh) loudMs += dt;
+        if(rms > peak) peak = rms;
+        // enough speech energy -> accept
+        if(loudMs > 260){ this.stop(); onSpoke(peak); return; }
+      }
+      // give up after 4.5 s
+      if(now - t0 > 4500){ this.stop(); onNothing('silence'); return; }
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  },
+
+  stop(){
+    this.active = false;
+    if(this.raf) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+  },
+
+  release(){
+    this.stop();
+    if(this.stream){ this.stream.getTracks().forEach(t=>{ try{t.stop();}catch(e){} }); }
+    this.stream = null; this.analyser = null;
+  }
+};
+
+/* Accept the answer because the child clearly spoke, even though we could not
+   transcribe it. Fizz still says the correct word, so the learning still lands. */
+function acceptSpoken(){
+  if(S.busy) return;
+  el.hint.textContent = 'I heard you! 🎉';
+  success();
+}
+
+function voiceFallback(){
+  if(S.busy) return;
+  micOn();
+  el.hint.textContent = 'Listening… say it out loud!';
+  Voice.start(
+    ()=>{ micOff(); acceptSpoken(); },
+    (why)=>{
+      micOff();
+      if(why === 'denied'){
+        el.hint.textContent = 'Microphone blocked — tap the picture! 👆';
+        showMicHelp();
+      }else if(why === 'unsupported'){
+        el.hint.textContent = 'Tap the right picture! 👆';
+        showMicHelp();
+      }else{
+        el.hint.textContent = 'I did not hear you. Speak louder! 🎤';
+      }
+    }
+  );
+}
+
+/* Switch to Tier 2 permanently for this session. */
+async function enterVoiceMode(reason){
+  if(voiceMode) return;
+  if(!await Voice.available()){ showMicHelp(); return; }
+  voiceMode = true;
+  console.info('[TalkyQuest] speech recogniser unusable (' + reason +
+               '), switching to voice-detection mode');
+}
+
+/* ---- Tier 1: Web Speech API ---- */
+if(!isNativeApp && SR){
+  webSR = true;
+  rec = new SR();
+  rec.lang='en-GB'; rec.continuous=false; rec.interimResults=true; rec.maxAlternatives=5;
+
+  rec.onstart = ()=>{ sawSpeech=false; gotResult=false; micOn(); };
+  rec.onspeechstart = ()=>{ sawSpeech = true; };
+
+  rec.onend = ()=>{
+    micOff();
+    if(S.busy || gotResult) return;
+    silentTries++;
+    // Two dead attempts in a row means this device's recogniser is not
+    // usable (common on Xiaomi/MIUI and some Samsung builds). Fall back.
+    if(silentTries >= 2){
+      enterVoiceMode('no transcript').then(()=>{
+        if(voiceMode){ el.hint.textContent = 'Tap 🎤 and speak!'; }
+        else { el.hint.textContent = 'Mic not working? Just tap the picture! 👆'; }
+      });
+    }else{
+      el.hint.textContent = sawSpeech ? 'Almost! Try again 🎤'
+                                      : 'I did not hear you. Speak louder! 🎤';
+    }
   };
+
+  rec.onerror = (e)=>{
+    micOff();
+    const err = e && e.error;
+    if(err === 'not-allowed' || err === 'service-not-allowed'){
+      el.hint.textContent = 'Microphone blocked — tap the picture! 👆';
+      showMicHelp();
+    }else if(err === 'audio-capture'){
+      el.hint.textContent = 'No microphone found — tap the picture! 👆';
+      showMicHelp();
+    }else if(err === 'language-not-supported' || err === 'service-not-available'){
+      enterVoiceMode(err);
+      el.hint.textContent = 'Tap 🎤 and speak!';
+    }else if(err === 'no-speech'){
+      silentTries++;
+      if(silentTries >= 2) enterVoiceMode('no-speech');
+      el.hint.textContent = 'I did not hear you. Speak louder! 🎤';
+    }else if(err !== 'aborted'){
+      enterVoiceMode(err || 'unknown');
+      el.hint.textContent = 'Tap 🎤 and speak!';
+    }
+  };
+
   rec.onresult = (e)=>{
+    const last = e.results[e.results.length-1];
+    if(!last.isFinal) return;
+    gotResult = true; sawSpeech = true; silentTries = 0;
     const heard = [];
-    for(let i=0;i<e.results[0].length;i++) heard.push(e.results[0][i].transcript.toLowerCase().trim());
+    for(let i=0;i<last.length;i++) heard.push(last[i].transcript.toLowerCase().trim());
     judge(heard);
   };
 }
 
+/* ---- Tier 1 (native app) ---- */
+async function listenNative(){
+  try{
+    const perm = await NativeSR.checkPermissions();
+    if(perm.speechRecognition !== 'granted'){
+      const asked = await NativeSR.requestPermissions();
+      if(asked.speechRecognition !== 'granted'){
+        el.hint.textContent = 'Microphone blocked — tap the picture! 👆';
+        showMicHelp(); return;
+      }
+    }
+    const avail = await NativeSR.available();
+    if(avail && avail.available === false){
+      await enterVoiceMode('plugin unavailable');
+      voiceFallback(); return;
+    }
+    micOn();
+    const res = await NativeSR.start({
+      language:'en-GB', maxResults:5, partialResults:false, popup:false
+    });
+    micOff();
+    const heard = ((res && res.matches) || []).map(m => String(m).toLowerCase().trim());
+    if(heard.length){ silentTries = 0; judge(heard); return; }
+    silentTries++;
+    if(silentTries >= 2){
+      await enterVoiceMode('native: no matches');
+      if(voiceMode){ voiceFallback(); return; }
+      el.hint.textContent = 'Mic not working? Just tap the picture! 👆';
+    }else{
+      el.hint.textContent = 'I did not hear you. Speak louder! 🎤';
+    }
+  }catch(e){
+    micOff();
+    await enterVoiceMode('native error');
+    if(voiceMode){ voiceFallback(); return; }
+    el.hint.textContent = 'Tap the picture to answer! 👆';
+    showMicHelp();
+  }
+}
+
+/* Single entry point. Picks the best tier available right now. */
 function listen(){
   if(S.busy || !srSupported) return;
-  if(S.listening){ try{rec.stop();}catch(e){} return; }
+
+  // second tap = stop listening
+  if(S.listening){
+    if(voiceMode){ Voice.stop(); micOff(); return; }
+    if(webSR){ try{ rec.stop(); }catch(e){} return; }
+    if(NativeSR){ NativeSR.stop().catch(()=>{}); micOff(); return; }
+    return;
+  }
+
   stopAudio();
-  try{ rec.start(); }catch(e){ /* already started */ }
+
+  if(voiceMode){ voiceFallback(); return; }            // Tier 2
+  if(webSR){ try{ rec.start(); }catch(e){ voiceFallback(); } return; }   // Tier 1
+  if(NativeSR){ listenNative(); return; }              // Tier 1 (app)
+  voiceFallback();                                     // Tier 2
 }
+
+/* Speech input is considered available if ANY tier can hear the child. */
+let srSupported = webSR || !!NativeSR ||
+                  !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
 /* ---------- MATCHING ---------- */
 function matches(heardList, item){
@@ -496,17 +892,26 @@ function judge(heardList){
   // said a wrong but valid option?
   const wrongPick = S.options.find(o=>o!==S.target && matches(heardList,o));
   S.attempts++;
+  // Visual feedback for children answering by voice: the option they actually
+  // said wobbles, so they can see which one they picked.
   if(wrongPick){ flash(wrongPick,'wrong'); }
   if(S.attempts>=2){
     el.hint.textContent = `Hint: it starts with "${S.target.word[0]}" — or tap the picture!`;
-    // Say the model pronunciation from the recording, twice, slowly.
-    playSeq(['ui_listen', S.target.word.toLowerCase()], ()=>{
+    hintTarget();                      // gently point at the right answer
+    playSeqNow(['ui_listen', S.target.word.toLowerCase()], ()=>{
       setTimeout(()=>sayWord(S.target.word), 400);
     });
   }else{
     el.hint.textContent='Almost! Try again 🎤';
-    playSeq(['ui_tryagain', S.target.word.toLowerCase()]);
+    playSeqNow(['ui_tryagain', S.target.word.toLowerCase()]);
   }
+}
+
+/* Pulse the correct choice so a child answering by voice can spot it. */
+function hintTarget(){
+  const btn=[...el.choices.querySelectorAll('.choice')]
+              .find(b=>b.dataset.word===S.target.word);
+  if(btn){ btn.classList.add('hintme'); setTimeout(()=>btn.classList.remove('hintme'),2400); }
 }
 
 /* ---------- ROUND FLOW ---------- */
@@ -517,11 +922,11 @@ function buildRound(){
   const pool = shuffle([...ch.items]).slice(0,3);
   S.options = pool;
   S.target = pool[Math.floor(Math.random()*pool.length)];
-  S.attempts = 0; S.busy=false;
+  S.attempts = 0; S.busy=false; S.ready=false;
 
   el.choices.innerHTML='';
   el.target.textContent='';
-  el.hero.className='hero-idle';
+  setHeroMood('idle');
 
   if(ch.counting){
     // Counting round: items drop into the tray one at a time so the child can
@@ -536,10 +941,13 @@ function buildRound(){
     for(let i=0;i<S.target.n;i++){
       const s=document.createElement('span');
       s.textContent=filler;
-      s.style.animationDelay=(i*0.34)+'s';
+      // All items must land within ~2 s, however many there are.
+      const gap = Math.min(0.22, 1.6 / S.target.n);
+      s.style.animationDelay=(i*gap)+'s';
       tray.appendChild(s);
     }
-    const dropTime = S.target.n*340 + 450;
+    const gap = Math.min(0.22, 1.6 / S.target.n);
+    const dropTime = S.target.n*gap*1000 + 420;
 
     // tap fallback: numbered buttons
     const row=$('numrow');
@@ -550,9 +958,9 @@ function buildRound(){
       b.innerHTML=`<div>${o.n}</div><div class="cap">${o.word}</div>`;
       b.dataset.word=o.word;
       b.onclick=()=>{
-        if(S.busy) return;
+        if(S.busy || !S.ready) return;      // wait until Fizz finished asking
         if(o===S.target) success();
-        else { flash(o,'wrong'); S.attempts++; playSeq(['ui_nothatis', o.word.toLowerCase()]); }
+        else { flash(o,'wrong'); S.attempts++; playSeqNow(['ui_nothatis', o.word.toLowerCase()]); }
       };
       row.appendChild(b);
     });
@@ -562,10 +970,11 @@ function buildRound(){
       const b=document.createElement('button');
       b.className='choice';
       b.style.background=o.css;
-      b.innerHTML = `<div>${o.emoji}</div>`;
+      b.innerHTML = o.img ? `<img class="choiceImg" src="${o.img}" alt="">`
+                          : `<div>${o.emoji}</div>`;
       b.onclick = ()=>{
-        if(S.busy) return;
-        if(o===S.target) success(); else { flash(o,'wrong'); S.attempts++; playSeq(['ui_nothatis', o.word.toLowerCase()]); }
+        if(S.busy || !S.ready) return;      // wait until Fizz finished asking
+        if(o===S.target) success(); else { flash(o,'wrong'); S.attempts++; playSeqNow(['ui_nothatis', o.word.toLowerCase()]); }
       };
       b.dataset.word=o.word;
       el.choices.appendChild(b);
@@ -580,11 +989,16 @@ function askPrompt(ch){
   el.speech.textContent = ch.prompt(S.target);
   if(ch.counting) el.target.textContent = '';
   el.hint.textContent = hintText();
-  const startListening = ()=>{ if(srSupported && !S.busy) listen(); };
+  const startListening = ()=>{
+    S.ready = true;                        // choices become tappable now
+    el.choices.classList.remove('locked');
+    if(srSupported && !S.busy) listen();
+  };
   // Speak the carrier sentence with TTS, but the target word itself from the
   // native recording, so pronunciation is always correct.
   const seq = ch.leadKey ? [ch.leadKey, S.target.word.toLowerCase()]
                          : ['ui_howmany','ui_saynumber'];
+  el.choices.classList.add('locked');
   playSeq(seq, startListening);
 }
 
@@ -600,16 +1014,17 @@ function flash(item, cls){
 function success(){
   if(S.busy) return;
   S.busy = true;
+  S.ready = false;                    // no more taps until the next question
   try{ if(S.listening) rec.stop(); }catch(e){}
   S.stars++; S.learned.add(S.target.word);
   el.starCount.textContent = S.stars;
-  el.hero.className='hero-happy';
+  setHeroMood('happy');
   el.hint.textContent='';
   el.speech.textContent = pick(['Yes! Great job!','Perfect!','Well done!','Amazing!','You got it!']);
   el.target.textContent = S.target.word;
 
   const btn=[...el.choices.querySelectorAll('.choice')].find(b=>b.dataset.word===S.target.word);
-  if(btn){ btn.classList.add('correct');
+  if(btn){ btn.classList.add('correct','grow');
     [...el.choices.querySelectorAll('.choice')].forEach(b=>{ if(b!==btn) b.classList.add('dim'); }); }
 
   confetti(18);
@@ -628,8 +1043,8 @@ function success(){
   // the confetti before moving on. Never advance mid-sentence.
   let moved = false;
   const go = ()=>{ if(moved) return; moved = true; setTimeout(advance, 1400); };
-  playSeq([S.target.word.toLowerCase(),
-           pick(['ui_greatjob','ui_welldone','ui_perfect','ui_amazing','ui_yougotit'])], go);
+  playSeqNow([S.target.word.toLowerCase(),
+              pick(['ui_greatjob','ui_welldone','ui_perfect','ui_amazing','ui_yougotit'])], go);
   setTimeout(go, 5000);   // safety net if audio never reports completion
 }
 
@@ -638,7 +1053,7 @@ function success(){
    the box, a prize bursts out and flies to the shelf, then the next chapter
    begins (or the game ends). */
 function showRewardBox(){
-  S.busy = true;
+  S.busy = true; S.ready = false;
   try{ if(S.listening) rec.stop(); }catch(e){}
 
   const done = DATA[chapterKey()];
@@ -648,7 +1063,7 @@ function showRewardBox(){
   const slot = $('rewardSlot');
   slot.innerHTML = '<button id="giftbox" aria-label="Open the gift box">🎁</button>';
   $('rewardHint').textContent = '👆 Tap the box to open it';
-  playKey('ui_openbox');
+  playKeyNow('ui_openbox');
 
   let opened = false;
   $('giftbox').onclick = ()=>{
@@ -667,7 +1082,13 @@ function showRewardBox(){
       burst.textContent = prize;
       slot.appendChild(burst);
       confetti(26);
-      $('rewardHint').textContent = 'Wow! A prize for you!';
+      const pname = PRIZE_NAMES[prize];
+      // The prize name is shown in writing. For the sound we reuse one of the
+      // game's existing praise recordings, so the voice stays exactly the same
+      // throughout the app and no new narration is introduced.
+      $('rewardHint').textContent = pname ? ('Wow! A ' + pname + '!')
+                                          : 'Wow! A prize for you!';
+      playKeyNow(pick(['ui_amazing','ui_fantastic','ui_yougotit']));
 
       // Fly it up to the shelf, then move on to the next chapter.
       setTimeout(()=>{
@@ -687,6 +1108,12 @@ function showRewardBox(){
 /* ---------- PRIZES ---------- */
 /* One prize per gift box. Shuffled at game start so each run feels different. */
 const PRIZES = shuffle(['🧸','🎈','🚀','🪁','🎨','🦄','⚽','🍭','🎸','🏰','🚂','🐳']);
+/* Spoken name for each prize, so the reward is announced excitedly. */
+const PRIZE_NAMES = {
+  '🧸':'teddy bear', '🎈':'balloon', '🚀':'rocket',  '🪁':'kite',
+  '🎨':'paint set',  '🦄':'unicorn', '⚽':'football','🍭':'lollipop',
+  '🎸':'guitar',     '🏰':'castle',  '🚂':'train',   '🐳':'whale'
+};
 
 /* Animate the prize from wherever it burst out, up into the shelf. */
 function flyToShelf(node, prize, rect){
@@ -724,6 +1151,38 @@ function addPrize(prize){
   $('shelf').appendChild(d);
 }
 
+/* Swap Fizz's pose to match his mood. */
+/* Some devices (commonly Xiaomi/MIUI) have the microphone permission granted
+   but route speech to a non-Google engine that returns nothing. Detect that
+   and tell the parent how to fix it, without ever blocking the child. */
+let micHelpShown = false;
+
+/* The parent only needs this advice once. Remember that they dismissed it, so
+   it never nags on every launch. Falls back to per-session memory if storage
+   is unavailable (private mode, some WebViews). */
+const MIC_HELP_KEY = 'tq_micHelpSeen';
+function micHelpAlreadySeen(){
+  try{ return localStorage.getItem(MIC_HELP_KEY) === '1'; }catch(e){ return false; }
+}
+function rememberMicHelpSeen(){
+  try{ localStorage.setItem(MIC_HELP_KEY, '1'); }catch(e){}
+}
+
+function showMicHelp(){
+  if(micHelpShown || micHelpAlreadySeen()) return;
+  micHelpShown = true;
+  const box = $('micHelp');
+  if(box) box.classList.add('show');
+}
+
+function setHeroMood(mood){
+  el.hero.className = (mood === 'happy') ? 'hero-happy' : 'hero-idle';
+  const idle = $('fizzIdle'), happy = $('fizzHappy');
+  if(!idle || !happy) return;
+  if(mood === 'happy'){ idle.classList.remove('on'); happy.classList.add('on'); }
+  else { happy.classList.remove('on'); idle.classList.add('on'); }
+}
+
 function updateBar(){
   const total = ORDER.length*ROUNDS_PER_CHAPTER;
   const done = S.chapter*ROUNDS_PER_CHAPTER + S.round;
@@ -737,7 +1196,7 @@ function showChapter(){
   $('chapterName').textContent = ch.name;
   $('chapterDesc').textContent = ch.desc;
   $('chapterScreen').classList.add('show');
-  playSeq(['ui_ch'+(S.chapter+1), ch.nameKey]);
+  playSeq(['ui_ch'+(S.chapter+1), ch.nameKey]);   // queued, never interrupts
 }
 
 function endGame(){
@@ -766,9 +1225,9 @@ function startGame(){
   // Let Fizz finish saying hello BEFORE the chapter card appears, otherwise
   // showChapter() calls stopAudio() and cuts the greeting in half.
   let moved = false;
-  const go = ()=>{ if(moved) return; moved = true; setTimeout(showChapter, 350); };
-  playKey('ui_hello', go);
-  setTimeout(go, 4000);          // safety net if audio never reports completion
+  const go = ()=>{ if(moved) return; moved = true; showChapter(); };
+  playKeyNow('ui_hello', go);
+  setTimeout(go, 5000);          // safety net if audio never reports completion
 }
 
 /* ---------- FX / UTILS ---------- */
@@ -791,15 +1250,41 @@ document.addEventListener('pointerdown', unlockAudio, {once:true});
 document.addEventListener('touchstart', unlockAudio, {once:true});
 $('playBtn').onclick = ()=>{ unlockAudio(); startGame(); };
 $('againBtn').onclick = ()=>{ unlockAudio(); startGame(); };
+$('micHelpBtn').onclick = ()=>{
+  $('micHelp').classList.remove('show');
+  rememberMicHelpSeen();
+};
 $('chapterBtn').onclick = ()=>{ $('chapterScreen').classList.remove('show'); buildRound(); };
 el.mic.onclick = listen;
-$('repeatBtn').onclick = ()=>{
-  if(!S.target) return;
+function repeatQuestion(){
+  if(!S.target || S.busy) return;
   const ch=DATA[chapterKey()];
   const seq = ch.leadKey ? [ch.leadKey, S.target.word.toLowerCase()]
                          : ['ui_howmany','ui_saynumber'];
-  playSeq(seq, ()=>{ if(srSupported && !S.busy) listen(); });
-};
+  S.ready = false; el.choices.classList.add('locked');
+  playSeqNow(seq, ()=>{
+    S.ready = true; el.choices.classList.remove('locked');
+    if(srSupported && !S.busy) listen();
+  });
+}
+$('repeatBtn').onclick = repeatQuestion;
+/* Long-press the speaker button to re-open the microphone advice, so a parent
+   can always find it again after dismissing it. */
+(function(){
+  const btn = $('repeatBtn');
+  let timer = null;
+  const arm = ()=>{ timer = setTimeout(()=>{
+    micHelpShown = false;
+    try{ localStorage.removeItem(MIC_HELP_KEY); }catch(e){}
+    showMicHelp();
+  }, 800); };
+  const clear = ()=>{ if(timer){ clearTimeout(timer); timer = null; } };
+  btn.addEventListener('pointerdown', arm);
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev, clear));
+})();
+// Tapping Fizz himself repeats the question - children reach for the character.
+el.hero.style.cursor = 'pointer';
+el.hero.addEventListener('click', repeatQuestion);
 if(!srSupported){ el.mic.style.opacity=.35; }
 document.addEventListener('gesturestart', e=>e.preventDefault());
 </script>
