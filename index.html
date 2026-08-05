@@ -279,10 +279,10 @@
 
   <div id="stage">
     <div id="hero" class="hero-idle">
-      <img id="fizzIdle"  class="on" src="hero/fizz-head.png" alt="Fizz the Fox">
+      <img id="fizzIdle"  class="on" src="hero/fizz-head.png" data-alt="fizz-head.png" alt="Fizz the Fox">
       <picture id="fizzHappy" aria-hidden="true">
-        <source srcset="hero/fizz-jump.webp" type="image/webp">
-        <img src="hero/fizz-jump.png" alt="">
+        <source srcset="hero/fizz-jump.webp" data-alt="fizz-jump.webp" type="image/webp">
+        <img src="hero/fizz-jump.png" data-alt="fizz-jump.png" alt="">
       </picture>
     </div>
     <div id="speech">Tap the microphone!</div>
@@ -299,8 +299,8 @@
 <!-- START -->
 <div class="overlay show" id="startScreen">
   <picture class="startFox">
-    <source srcset="hero/fizz-jump.webp" type="image/webp">
-    <img src="hero/fizz-jump.png" alt="Fizz the Fox">
+    <source srcset="hero/fizz-jump.webp" data-alt="fizz-jump.webp" type="image/webp">
+    <img src="hero/fizz-jump.png" data-alt="fizz-jump.png" alt="Fizz the Fox">
   </picture>
   <h1>TALKY QUEST</h1>
   <p class="sub">Speak English out loud and help Fizz the Fox on a magical adventure!</p>
@@ -970,8 +970,17 @@ function buildRound(){
       const b=document.createElement('button');
       b.className='choice';
       b.style.background=o.css;
-      b.innerHTML = o.img ? `<img class="choiceImg" src="${o.img}" alt="">`
-                          : `<div>${o.emoji}</div>`;
+      if(o.img){
+        const im = document.createElement('img');
+        im.className = 'choiceImg';
+        im.alt = '';
+        const bare = o.img.split('/').pop();
+        im.addEventListener('error', ()=>{ if(!im.dataset.retried){ im.dataset.retried='1'; im.src = bare; } });
+        im.src = o.img;
+        b.appendChild(im);
+      } else {
+        b.innerHTML = `<div>${o.emoji}</div>`;
+      }
       b.onclick = ()=>{
         if(S.busy || !S.ready) return;      // wait until Fizz finished asking
         if(o===S.target) success(); else { flash(o,'wrong'); S.attempts++; playSeqNow(['ui_nothatis', o.word.toLowerCase()]); }
@@ -1245,6 +1254,43 @@ function confetti(n){
 function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
 function pick(a){ return a[(Math.random()*a.length)|0]; }
 
+
+/* ---------- ASSET PATH FALLBACK ----------
+   The artwork normally lives in hero/. If those files were uploaded to the
+   site root instead (GitHub's drag-and-drop uploader flattens folders), the
+   images would 404. Retry once from the root before giving up, so the game
+   looks right either way. */
+(function(){
+  function retryFromRoot(img){
+    if(!img || img.dataset.retried) return;
+    img.dataset.retried = '1';
+    const alt = img.dataset.alt || img.src.split('/').pop();
+    img.src = alt;
+  }
+  function wire(img){
+    if(!img) return;
+    // already broken by the time we run?
+    if(img.complete && img.naturalWidth === 0) retryFromRoot(img);
+    img.addEventListener('error', ()=>retryFromRoot(img));
+  }
+  function fixPicture(pic){
+    const img = pic.querySelector('img');
+    const src = pic.querySelector('source');
+    if(!img) return;
+    img.addEventListener('error', ()=>{
+      // drop the <source> so the browser falls back to the <img>, then root
+      if(src && src.parentNode){ src.parentNode.removeChild(src); }
+      retryFromRoot(img);
+    });
+    if(img.complete && img.naturalWidth === 0){
+      if(src && src.parentNode) src.parentNode.removeChild(src);
+      retryFromRoot(img);
+    }
+  }
+  document.querySelectorAll('picture').forEach(fixPicture);
+  document.querySelectorAll('img:not(picture img)').forEach(wire);
+})();
+
 /* ---------- EVENTS ---------- */
 document.addEventListener('pointerdown', unlockAudio, {once:true});
 document.addEventListener('touchstart', unlockAudio, {once:true});
@@ -1288,5 +1334,6 @@ el.hero.addEventListener('click', repeatQuestion);
 if(!srSupported){ el.mic.style.opacity=.35; }
 document.addEventListener('gesturestart', e=>e.preventDefault());
 </script>
-</body>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a268ab4c4ee6b8a1',t:'MTc4NTk2Mjk3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
